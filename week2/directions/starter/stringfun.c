@@ -126,16 +126,16 @@ int main(int argc, char *argv[]){
     /*
      * WHY IS THIS SAFE?
      * -----------------
-     * The condition `(argc < 2)` ensures that `argv[1]` is not accessed if it does not exist.
+     * The condition (argc < 2) ensures that argv[1] is not accessed if it does not exist.
      * 
-     * If the user does not provide any arguments beyond the program name, `argc` will be 1,
-     * meaning `argv[1]` does not exist. Attempting to dereference `argv[1]` in this case
-     * would result in undefined behavior. By checking `(argc < 2)` first, the code avoids
-     * accessing `argv[1]` when it is invalid.
+     * If the user does not provide any arguments beyond the program name, argc will be 1,
+     * meaning argv[1] does not exist. Attempting to dereference argv[1] in this case
+     * would result in an error. By checking (argc < 2) first, the code avoids
+     * accessing argv[1] when it is invalid.
      * 
-     * Additionally, the `||` operator uses short-circuit evaluation, meaning the second condition
-     * (`*argv[1] != '-'`) is only evaluated if `(argc < 2)` is false. This guarantees that
-     * `argv[1]` is valid before it is dereferenced.
+     * Additionally, the || operator uses short-circuit evaluation, meaning the second condition
+     * (*argv[1] != '-') is only evaluated if (argc < 2) is false. This guarantees that
+     * argv[1] is valid before it is dereferenced.
      */
     if ((argc < 2) || (*argv[1] != '-')){
         usage(argv[0]);
