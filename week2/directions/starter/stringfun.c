@@ -203,7 +203,7 @@ int main(int argc, char *argv[]){
         case 'r': {
             // Skip the opening bracket and exclude the dots and closing bracket
             char *start = buff + 1;  // Skip the opening bracket '['
-            char *end = buff + user_str_len - 2;  // Exclude the closing bracket ']'
+            char *end = buff + user_str_len - 2;  // Skip the closing bracket ']'
 
             // Reverse only the meaningful part of the string (exclude dots and brackets)
             while (start < end) {
@@ -219,7 +219,7 @@ int main(int argc, char *argv[]){
             // Print the reversed string without brackets and dots
             printf("Reversed String: ");
             for (int i = 1; i < user_str_len - 1; i++) {  // Skip the first and last characters (brackets)
-                if (buff[i] != '.') {  // Skip dots in the printed reversed string
+                if (buff[i] != '.') {  // Skip padding in the printed reversed string
                     putchar(buff[i]);
                 }
             }
@@ -256,7 +256,7 @@ int main(int argc, char *argv[]){
 
             // Handle last word after the loop if needed
             if (start != end && *start != '.' && *start != ']') {  // Ensure it's before the padding
-                printf("%d.%s(%ld)\n", word_count++,start,end - start);
+                printf("%d. %s(%ld)\n", word_count++,start,end - start);
                 total_words++;  // Increment total word count
             }
 
@@ -275,6 +275,7 @@ int main(int argc, char *argv[]){
             printf("Not Implemented!\n");
             exit(0);
         }
+        
 
 
         default:
@@ -296,17 +297,16 @@ int main(int argc, char *argv[]){
 //  
 //          PLACE YOUR ANSWER HERE
 //
-// Providing both the pointer and the length as arguments is a good practice because:
 //
 // 1.  Functions that explicitly take a length parameter are more reusable, 
 //     as they are not tied to a fixed size (e.g., 50 bytes in this case). 
 //     They can be used with buffers of varying sizes without modification.
 //
-// 2. Even if the buffer size is fixed in `main()`, passing the length 
+// 2. Even if the buffer size is fixed in main(), passing the length 
 //    ensures that the function operates within the defined bounds, preventing potential buffer overflows. 
 //    This makes the code safer and more robust.
 //
-// 3. If the buffer size in `main()` changes in the future 
+// 3. If the buffer size in main() changes in the future 
 //    (e.g., to 100 bytes or dynamically allocated memory), the functions will still work correctly without 
 //    requiring changes.
 //
@@ -314,4 +314,4 @@ int main(int argc, char *argv[]){
 //    By passing both the pointer and length, it becomes easier to work with slices of the buffer.
 //
 // In summary, this approach enhances safety, reusability, flexibility, and clarity, 
-// even if the fixed size of `buff` is known in `main()`.
+// even if the fixed size of buff is known in main().
