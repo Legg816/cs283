@@ -102,11 +102,11 @@ Please answer the following questions and submit in your repo for the second ass
 
     - Please explain why the file size reported by the `ls` command was 128 bytes after adding student with ID=1, 256 after adding student with ID=3, and 4160 after adding the student with ID=64? 
 
-        > **ANSWER:** 
+        > **ANSWER:** The ls -l command reports the logical file size based on the highest byte written. Each student record is stored at an offset of id * sizeof(student_t), where sizeof(student_t) = 64 bytes. Adding ID=1 extends the file to 128 bytes, ID=3 extends it to 256 bytes, and ID=64 extends it to 4160 bytes, aligning with their respective offsets.
 
     -   Why did the total storage used on the disk remain unchanged when we added the student with ID=1, ID=3, and ID=63, but increased from 4K to 8K when we added the student with ID=64? 
 
-        > **ANSWER:** _start here_
+        > **ANSWER:** Linux filesystems allocate storage in blocks (typically 4K). Sparse files do not allocate actual disk space for unwritten sections, only updating metadata. Since IDs 1, 3, and 63 fit within the first allocated 4K block, storage remains unchanged, but ID 64 exceeds this limit, triggering allocation of an additional 4K block.
 
     - Now lets add one more student with a large student ID number  and see what happens:
 
@@ -119,4 +119,4 @@ Please answer the following questions and submit in your repo for the second ass
         ```
         We see from above adding a student with a very large student ID (ID=99999) increased the file size to 6400000 as shown by `ls` but the raw storage only increased to 12K as reported by `du`.  Can provide some insight into why this happened?
 
-        > **ANSWER:**  _start here_
+        > **ANSWER:**  The file size reported by ls is based on the highest written byte, so ID=99999 at offset 99999 * 64 = 6,400,000 extends the logical size to 6.4MB. However, due to sparse file handling, only the actual written blocks are stored on disk. Since only a few blocks are used, the real disk usage remains minimal at 12K.
