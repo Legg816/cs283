@@ -107,6 +107,28 @@ int execute_pipeline(command_list_t *clist) {
                 }
             }
 
+            // Handle output redirection for the last command
+            if (clist->commands[i].output_file != NULL) {
+                int fd;
+                if (clist->commands[i].append_mode) {
+                    fd = open(clist->commands[i].output_file, O_WRONLY | O_CREAT | O_APPEND, 0644);
+                } else {
+                    fd = open(clist->commands[i].output_file, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+                }
+
+                if (fd == -1) {
+                    perror("Error opening file for redirection");
+                    exit(ERR_EXEC_CMD);
+                }
+
+                // Redirect output to the file
+                if (dup2(fd, STDOUT_FILENO) == -1) {
+                    perror("Error redirecting output to file");
+                    exit(ERR_EXEC_CMD);
+                }
+                close(fd);  // Close the file descriptor after duplicating
+            }
+
             // Close all pipe file descriptors in the child process
             for (int j = 0; j < 2 * (num_cmds - 1); j++) {
                 close(pipefds[j]);
@@ -131,11 +153,30 @@ int execute_pipeline(command_list_t *clist) {
     return OK;
 }
 
-
-
 int exec_cmd(cmd_buff_t *cmd) {
     pid_t pid = fork();
     if (pid == 0) {  // Child process
+        if (cmd->output_file != NULL) {  // If there is an output file for redirection
+            int fd;
+            if (cmd->append_mode) {  // Append mode
+                fd = open(cmd->output_file, O_WRONLY | O_CREAT | O_APPEND, 0644);
+            } else {  // Overwrite mode
+                fd = open(cmd->output_file, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+            }
+
+            if (fd == -1) {
+                perror("Error opening file for redirection");
+                exit(ERR_EXEC_CMD);
+            }
+
+            // Redirect output to the file
+            if (dup2(fd, STDOUT_FILENO) == -1) {
+                perror("Error redirecting output to file");
+                exit(ERR_EXEC_CMD);
+            }
+            close(fd);  // Close the file descriptor after duplicating
+        }
+
         execvp(cmd->argv[0], cmd->argv);  // Execute command
         _exit(errno);  // If execvp fails, pass the error to the parent
     } else if (pid > 0) {  // Parent process
@@ -156,6 +197,8 @@ int exec_cmd(cmd_buff_t *cmd) {
 }
 
 
+
+// Function to parse the command buffer and detect redirection
 int build_cmd_buff(char *cmd_line, cmd_buff_t *cmd_buff) {
     if (!cmd_line || !cmd_buff) return ERR_MEMORY;
 
@@ -164,12 +207,30 @@ int build_cmd_buff(char *cmd_line, cmd_buff_t *cmd_buff) {
 
     cmd_buff->argc = 0;
     char *ptr = cmd_buff->_cmd_buffer;
+    cmd_buff->output_file = NULL;
+    cmd_buff->append_mode = false;
 
     while (*ptr) {
         while (isspace((unsigned char)*ptr)) ptr++;  // Skip spaces
         if (*ptr == '\0') break;
 
-        cmd_buff->argv[cmd_buff->argc++] = ptr;  // Assign argument pointer
+        // Handle redirection
+        if (*ptr == '>') {
+            ptr++;  // Skip '>'
+            while (isspace((unsigned char)*ptr)) ptr++;  // Skip spaces after '>'
+            if (*ptr == '>') {
+                cmd_buff->append_mode = true;
+                ptr++;  // Skip '>'
+            }
+
+            cmd_buff->output_file = ptr;  // Set the output file
+            while (*ptr && !isspace((unsigned char)*ptr)) ptr++;  // Skip to next space
+            if (*ptr) *ptr++ = '\0';  // Null-terminate the output file path
+            continue;
+        }
+
+        // Normal argument processing
+        cmd_buff->argv[cmd_buff->argc++] = ptr;
         while (*ptr && !isspace((unsigned char)*ptr)) ptr++;  // Skip until next space
         if (*ptr) *ptr++ = '\0';  // Null-terminate the argument
     }

@@ -1,6 +1,7 @@
 #ifndef __DSHLIB_H__
     #define __DSHLIB_H__
 
+#include <stdbool.h>
 
 //Constants for command structure sizes
 #define EXE_MAX 64
@@ -21,6 +22,8 @@ typedef struct cmd_buff
     int  argc;
     char *argv[CMD_ARGV_MAX];
     char *_cmd_buffer;
+    char * output_file;  // Output file for redirection
+    bool append_mode;  // Flag for append mode (for '>>')
 } cmd_buff_t;
 
 /* WIP - Move to next assignment 
