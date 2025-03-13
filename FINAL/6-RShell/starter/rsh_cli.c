@@ -92,7 +92,49 @@
  */
 int exec_remote_cmd_loop(char *address, int port)
 {
-    return WARN_RDSH_NOT_IMPL;
+    char *cmd_buff = malloc(RDSH_COMM_BUFF_SZ);
+    char *rsp_buff = malloc(RDSH_COMM_BUFF_SZ);
+    int cli_socket;
+    ssize_t io_size;
+    int is_eof;
+
+    if (!cmd_buff || !rsp_buff) {
+        perror("malloc");
+        return client_cleanup(cli_socket, cmd_buff, rsp_buff, ERR_MEMORY);
+    }
+
+    cli_socket = start_client(address, port);
+    if (cli_socket < 0) {
+        return client_cleanup(cli_socket, cmd_buff, rsp_buff, ERR_RDSH_CLIENT);
+    }
+
+    while (1) {
+        printf("dsh4> ");
+        if (!fgets(cmd_buff, RDSH_COMM_BUFF_SZ, stdin)) {
+            break;
+        }
+
+        cmd_buff[strcspn(cmd_buff, "\n")] = '\0';
+        if (send(cli_socket, cmd_buff, strlen(cmd_buff) + 1, 0) < 0) {
+            perror("send");
+            break;
+        }
+
+        while ((io_size = recv(cli_socket, rsp_buff, RDSH_COMM_BUFF_SZ, 0)) > 0) {
+            is_eof = (rsp_buff[io_size - 1] == RDSH_EOF_CHAR);
+            if (is_eof) {
+                rsp_buff[io_size - 1] = '\0';
+            }
+            printf("%.*s", (int)io_size, rsp_buff);
+            if (is_eof) break;
+        }
+
+        if (strcmp(cmd_buff, "exit") == 0 || strcmp(cmd_buff, "stop-server") == 0) {
+            break;
+        }
+    }
+
+    return client_cleanup(cli_socket, cmd_buff, rsp_buff, OK);
 }
 
 /*
@@ -119,7 +161,33 @@ int exec_remote_cmd_loop(char *address, int port)
  * 
  */
 int start_client(char *server_ip, int port){
-    return WARN_RDSH_NOT_IMPL;
+    struct sockaddr_in addr;
+    int cli_socket;
+
+    cli_socket = socket(AF_INET, SOCK_STREAM, 0);
+    if (cli_socket < 0) {
+        perror("socket");
+        return ERR_RDSH_CLIENT;
+    }
+
+    memset(&addr, 0, sizeof(addr));
+    addr.sin_family = AF_INET;
+    addr.sin_port = htons(port);
+    if (inet_pton(AF_INET, server_ip, &addr.sin_addr) <= 0) {
+        perror("inet_pton failed: Invalid IP Address");
+        close(cli_socket);
+        return ERR_RDSH_CLIENT;
+    }
+    
+    printf("Attempting to connect to %s:%d\n", server_ip, port);
+
+    if (connect(cli_socket, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
+        perror("connect");
+        close(cli_socket);
+        return ERR_RDSH_CLIENT;
+    }
+
+    return cli_socket;
 }
 
 /*

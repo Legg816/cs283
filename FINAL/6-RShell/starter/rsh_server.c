@@ -10,8 +10,8 @@
 #include <fcntl.h>
 
 //INCLUDES for extra credit
-//#include <signal.h>
-//#include <pthread.h>
+#include <signal.h>
+#include <pthread.h>
 //-------------------------
 
 #include "dshlib.h"
@@ -115,7 +115,33 @@ int stop_server(int svr_socket){
  * 
  */
 int boot_server(char *ifaces, int port){
-    return WARN_RDSH_NOT_IMPL;
+    int svr_socket;
+    struct sockaddr_in server_addr;
+    int enable = 1;
+
+    svr_socket = socket(AF_INET, SOCK_STREAM, 0);
+    if (svr_socket < 0) {
+        perror("Socket creation failed");
+        return ERR_RDSH_COMMUNICATION;
+    }
+
+    setsockopt(svr_socket, SOL_SOCKET, SO_REUSEADDR, &enable, sizeof(int));
+
+    server_addr.sin_family = AF_INET;
+    server_addr.sin_port = htons(port);
+    server_addr.sin_addr.s_addr = inet_addr(ifaces);
+
+    if (bind(svr_socket, (struct sockaddr*)&server_addr, sizeof(server_addr)) < 0) {
+        perror("Bind failed");
+        return ERR_RDSH_COMMUNICATION;
+    }
+
+    if (listen(svr_socket, 5) < 0) {
+        perror("Listen failed");
+        return ERR_RDSH_COMMUNICATION;
+    }
+
+    return svr_socket;
 }
 
 /*
@@ -160,7 +186,27 @@ int boot_server(char *ifaces, int port){
  * 
  */
 int process_cli_requests(int svr_socket){
-    return WARN_RDSH_NOT_IMPL;
+    struct sockaddr_in client_addr;
+    socklen_t client_len = sizeof(client_addr);
+    int cli_socket, rc;
+
+    while (1) {
+        cli_socket = accept(svr_socket, (struct sockaddr *)&client_addr, &client_len);
+        if (cli_socket < 0) {
+            perror("Accept failed");
+            return ERR_RDSH_COMMUNICATION;
+        }
+
+        rc = exec_client_requests(cli_socket);
+        close(cli_socket);
+
+        if (rc == OK_EXIT) {
+            break;  // Stop server if client requests shutdown
+        }
+    }
+
+    stop_server(svr_socket);
+    return OK_EXIT;
 }
 
 /*
@@ -205,7 +251,33 @@ int process_cli_requests(int svr_socket){
  *                or receive errors. 
  */
 int exec_client_requests(int cli_socket) {
-    return WARN_RDSH_NOT_IMPL;
+    char *io_buff = malloc(RDSH_COMM_BUFF_SZ);
+    if (!io_buff) {
+        perror("Memory allocation failed");
+        return ERR_MEMORY;
+    }
+
+    while (1) {
+        ssize_t recv_bytes = recv(cli_socket, io_buff, RDSH_COMM_BUFF_SZ, 0);
+        if (recv_bytes <= 0) {
+            free(io_buff);
+            return ERR_RDSH_COMMUNICATION;
+        }
+
+        io_buff[recv_bytes] = '\0';
+        
+        if (strcmp(io_buff, "exit") == 0) {
+            free(io_buff);
+            return OK;
+        }
+        if (strcmp(io_buff, "stop-server") == 0) {
+            free(io_buff);
+            return OK_EXIT;
+        }
+
+        system(io_buff);
+        send_message_eof(cli_socket);
+    }
 }
 
 /*
@@ -288,7 +360,26 @@ int send_message_string(int cli_socket, char *buff){
  *                  get this value. 
  */
 int rsh_execute_pipeline(int cli_sock, command_list_t *clist) {
-    return WARN_RDSH_NOT_IMPL;
+    pid_t pid;
+    int status;
+
+    if ((pid = fork()) == 0) {
+        dup2(cli_sock, STDOUT_FILENO);
+        dup2(cli_sock, STDERR_FILENO);
+        close(cli_sock);
+
+        //execvp(clist->cmds[0], clist->cmds);
+        perror("execvp failed");
+        exit(1);
+    }
+    else if (pid > 0) {
+        waitpid(pid, &status, 0);
+        send_message_eof(cli_sock);
+        return WEXITSTATUS(status);
+    }
+    else {
+        return ERR_RDSH_CMD_EXEC;
+    }
 }
 
 /**************   OPTIONAL STUFF  ***************/
