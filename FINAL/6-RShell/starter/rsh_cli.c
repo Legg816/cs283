@@ -181,11 +181,19 @@ int start_client(char *server_ip, int port){
     
     printf("Attempting to connect to %s:%d\n", server_ip, port);
 
-    if (connect(cli_socket, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
-        perror("connect");
-        close(cli_socket);
-        return ERR_RDSH_CLIENT;
+    int attempts = 5;
+    while (attempts > 0) {
+        if (connect(cli_socket, (struct sockaddr *)&addr, sizeof(addr)) == 0) {
+            printf("Connected to server at %s:%d\n", server_ip, port);
+            return cli_socket;
+        }
+        perror("connect failed, retrying...");
+        sleep(1);  // Wait a second before retrying
+        attempts--;
     }
+    close(cli_socket);
+    return ERR_RDSH_CLIENT;
+
 
     return cli_socket;
 }
